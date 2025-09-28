@@ -11,10 +11,9 @@ import google.generativeai as genai
 # ----------------------------
 # Configure API
 # ----------------------------
-api_key = os.getenv("API_KEY")
-print(api_key)
-genai.configure(api_key=api_key)
-
+# api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"
+# genai.configure(api_key=api_key)
+# print("GenAI client configured successfully.")
 # ----------------------------
 # PDF Processing Functions
 # ----------------------------
@@ -82,7 +81,9 @@ def ask_gemini(query, context_chunks):
 # ----------------------------
 st.set_page_config(page_title="📘 RAG Chatbot", layout="wide")
 st.title("📘 RAG Chatbot using Gemini + FAISS")
-
+api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"
+genai.configure(api_key=api_key)
+print("GenAI client configured successfully.")
 # Upload PDF
 uploaded_pdf = st.file_uploader("Upload a PDF", type="pdf")
 
@@ -117,4 +118,5 @@ if uploaded_pdf:
 
 else:
     st.info("Please upload a PDF to start.")
+
 
