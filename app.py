@@ -12,6 +12,7 @@ import google.generativeai as genai
 # Configure API
 # ----------------------------
 api_key = os.getenv("API_KEY")
+print(api_key)
 genai.configure(api_key=api_key)
 
 # ----------------------------
@@ -116,3 +117,4 @@ if uploaded_pdf:
 
 else:
     st.info("Please upload a PDF to start.")
+
