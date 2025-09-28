@@ -1,3 +1,5 @@
+import os
+os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
 import streamlit as st
 import pdfplumber
@@ -9,7 +11,7 @@ import google.generativeai as genai
 # ----------------------------
 # Configure API
 # ----------------------------
-api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"  # <-- replace with your key
+api_key = os.getenv("API_KEY")
 genai.configure(api_key=api_key)
 
 # ----------------------------
@@ -25,9 +27,9 @@ def extract_pdf_text(pdf_path):
     return text
 
 def clean_text(text):
-    text = re.sub(r'\n+', '\n', text)        # remove multiple newlines
-    text = re.sub(r'\s+', ' ', text)         # remove extra spaces
-    text = re.sub(r'Page \d+', '', text)     # remove "Page 23"
+    text = re.sub(r'\n+', '\n', text)
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'Page \d+', '', text)
     return text.strip()
 
 def chunk_text(text, chunk_size=1000, overlap=200):
@@ -113,5 +115,4 @@ if uploaded_pdf:
                 st.markdown(f"**Chunk {i}:** {chunk}")
 
 else:
-
     st.info("Please upload a PDF to start.")
