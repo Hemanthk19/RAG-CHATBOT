@@ -1,4 +1,4 @@
-```python
+
 import streamlit as st
 import pdfplumber
 import re
@@ -113,4 +113,5 @@ if uploaded_pdf:
                 st.markdown(f"**Chunk {i}:** {chunk}")
 
 else:
+
     st.info("Please upload a PDF to start.")
