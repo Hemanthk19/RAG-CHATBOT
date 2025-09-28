@@ -12,7 +12,7 @@ import time
 # ----------------------------
 # Configure API
 # ----------------------------
-api_key = "YOUR_API_KEY_HERE"
+api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"
 genai.configure(api_key=api_key)
 
 # ----------------------------
@@ -96,7 +96,7 @@ st.title("📘 RAG Chatbot using Gemini + FAISS")
 # Load PDF and build knowledge base in backend
 # ----------------------------
 @st.cache_resource
-def load_knowledge_base(pdf_path="data/book.pdf"):
+def load_knowledge_base(pdf_path="Software-Engineering-9th-Edition-by-Ian-Sommerville.pdf"):
     raw_text = extract_pdf_text(pdf_path)
     cleaned_text = clean_text(raw_text)
     chunks = chunk_text(cleaned_text)
@@ -123,3 +123,4 @@ if query:
     with st.expander("📚 Retrieved Context"):
         for i, chunk in enumerate(results, 1):
             st.markdown(f"**Chunk {i}:** {chunk}")
+
