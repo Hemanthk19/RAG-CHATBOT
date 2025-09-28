@@ -7,13 +7,14 @@ import re
 import faiss
 import numpy as np
 import google.generativeai as genai
+import time
 
 # ----------------------------
 # Configure API
 # ----------------------------
-# api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"
-# genai.configure(api_key=api_key)
-# print("GenAI client configured successfully.")
+api_key = "YOUR_API_KEY_HERE"
+genai.configure(api_key=api_key)
+
 # ----------------------------
 # PDF Processing Functions
 # ----------------------------
@@ -41,12 +42,24 @@ def chunk_text(text, chunk_size=1000, overlap=200):
         start += chunk_size - overlap
     return chunks
 
-def create_embeddings(chunks):
-    response = genai.embed_content(
-        model="models/text-embedding-004",
-        content=chunks
-    )
-    return np.array(response['embedding'], dtype="float32")
+def create_embeddings(chunks, batch_size=5, retry_attempts=3, delay=2):
+    """Create embeddings in batches to avoid DeadlineExceeded"""
+    all_embeddings = []
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i+batch_size]
+        for attempt in range(retry_attempts):
+            try:
+                response = genai.embed_content(model="models/text-embedding-004", content=batch)
+                all_embeddings.extend(response['embedding'])
+                break
+            except Exception as e:
+                if attempt < retry_attempts - 1:
+                    time.sleep(delay * (2 ** attempt))
+                    continue
+                else:
+                    st.error(f"Embedding failed for batch {i//batch_size + 1}: {e}")
+                    raise e
+    return np.array(all_embeddings, dtype="float32")
 
 def build_faiss_index(embeddings):
     dim = embeddings.shape[1]
@@ -55,10 +68,7 @@ def build_faiss_index(embeddings):
     return index
 
 def search_chunks(query, index, chunks, top_k=3):
-    q_embed = genai.embed_content(
-        model="models/text-embedding-004",
-        content=query
-    )['embedding']
+    q_embed = genai.embed_content(model="models/text-embedding-004", content=query)['embedding']
     q_embed = np.array(q_embed, dtype="float32").reshape(1, -1)
     distances, indices = index.search(q_embed, top_k)
     return [chunks[i] for i in indices[0]]
@@ -81,42 +91,35 @@ def ask_gemini(query, context_chunks):
 # ----------------------------
 st.set_page_config(page_title="📘 RAG Chatbot", layout="wide")
 st.title("📘 RAG Chatbot using Gemini + FAISS")
-api_key = "AIzaSyDsDLtX7M3tRD1GZiNHmNCIVPGKFcjpD34"
-genai.configure(api_key=api_key)
-print("GenAI client configured successfully.")
-# Upload PDF
-uploaded_pdf = st.file_uploader("Upload a PDF", type="pdf")
 
-if uploaded_pdf:
-    with st.spinner("Extracting text from PDF..."):
-        raw_text = extract_pdf_text(uploaded_pdf)
-        cleaned_text = clean_text(raw_text)
-        chunks = chunk_text(cleaned_text)
+# ----------------------------
+# Load PDF and build knowledge base in backend
+# ----------------------------
+@st.cache_resource
+def load_knowledge_base(pdf_path="data/book.pdf"):
+    raw_text = extract_pdf_text(pdf_path)
+    cleaned_text = clean_text(raw_text)
+    chunks = chunk_text(cleaned_text)
+    embeddings = create_embeddings(chunks)
+    index = build_faiss_index(embeddings)
+    return chunks, index
 
-    st.success(f"✅ Extracted {len(chunks)} chunks from PDF")
+# Preload PDF from repo (change path if needed)
+chunks, index = load_knowledge_base()
 
-    with st.spinner("Creating embeddings & FAISS index..."):
-        embeddings = create_embeddings(chunks)
-        index = build_faiss_index(embeddings)
+# ----------------------------
+# Chat Interface Only
+# ----------------------------
+query = st.text_input("💬 Ask a question from the PDF:")
 
-    st.success("✅ Knowledge base ready!")
+if query:
+    with st.spinner("Thinking..."):
+        results = search_chunks(query, index, chunks, top_k=3)
+        answer = ask_gemini(query, results)
 
-    # Chat Interface
-    query = st.text_input("💬 Ask a question from the PDF:")
+    st.subheader("🤖 Answer:")
+    st.write(answer)
 
-    if query:
-        with st.spinner("Thinking..."):
-            results = search_chunks(query, index, chunks, top_k=3)
-            answer = ask_gemini(query, results)
-
-        st.subheader("🤖 Answer:")
-        st.write(answer)
-
-        with st.expander("📚 Retrieved Context"):
-            for i, chunk in enumerate(results, 1):
-                st.markdown(f"**Chunk {i}:** {chunk}")
-
-else:
-    st.info("Please upload a PDF to start.")
-
-
+    with st.expander("📚 Retrieved Context"):
+        for i, chunk in enumerate(results, 1):
+            st.markdown(f"**Chunk {i}:** {chunk}")
